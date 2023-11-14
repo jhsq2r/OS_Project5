@@ -50,6 +50,8 @@ struct PCB {
         pid_t pid;
         int startSeconds;
         int startNano;
+        int isWaiting;
+        int lastRequest;
 };
 
 void displayTable(int i, struct PCB *processTable, FILE *file){
@@ -150,6 +152,7 @@ int main(int argc, char** argv) {
         nextLaunchTime[0] = 0;
         nextLaunchTime[1] = 0;
         int canLaunch;
+        int requestTrack = 0;
         while(1){
                 seed++;
                 srand(seed);
@@ -210,6 +213,11 @@ int main(int argc, char** argv) {
                         }
                         totalLaunched++;
                 }
+
+                //Check if any request from the request matrix can be fulfilled 
+                //increment through the PCB and check if any waiting requests can be fulfilled
+                //If request can be fulfilled, update request matrix-allocation matrix-PCB-resource array-allocation array
+                
                 //Dont wait for message, but check
                 if (msgrcv(msqid, &receiver, sizeof(msgbuffer), getpid(),0) == -1) {//change to nonblocking
                         perror("failed to receive message in parent\n");
@@ -219,7 +227,8 @@ int main(int argc, char** argv) {
                       //if a request 
                                 //check if request can be fufilled
                                 //if yes update resources accordingly and stat keeping variable
-                                //if no update stat keeping variable
+                                //if no update request matrix and stat keeping variable and increment the requestTrack variable
+                                //assign the requestTrack variable to the correct value in PCB
                       //if a release 
                                 //release resources accordingly and update stat keeping variable
 
