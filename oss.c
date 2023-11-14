@@ -216,8 +216,12 @@ int main(int argc, char** argv) {
                         exit(1);
                 }
                 //if you get a message
-                      //if a request to this
-                      //if a release do this
+                      //if a request 
+                                //check if request can be fufilled
+                                //if yes update resources accordingly and stat keeping variable
+                                //if no update stat keeping variable
+                      //if a release 
+                                //release resources accordingly and update stat keeping variable
 
                 //every half second, output resource table and PCB, maybe the other matrix's too
                 if (sharedTime[1] == 500000000 || sharedTime[1] == 0){//This may need editing too
