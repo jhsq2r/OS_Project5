@@ -22,7 +22,7 @@
 
 typedef struct msgbuffer {
         long mtype;
-        int intData;//may need to add another in for pid, may not be needed though
+        int intData[2];//may need to add another in for pid, may not be needed though
 } msgbuffer;
 
 static void myhandler(int s){
@@ -216,7 +216,7 @@ int main(int argc, char** argv) {
 
                 //Check if any request from the request matrix can be fulfilled 
                 //increment through the PCB and check if any waiting requests can be fulfilled
-                //If request can be fulfilled, update request matrix-allocation matrix-PCB-resource array-allocation array
+                //If request can be fulfilled, update request matrix-allocation matrix-PCB-resource array-allocation array, then message back
                 
                 //Dont wait for message, but check
                 if (msgrcv(msqid, &receiver, sizeof(msgbuffer), getpid(),0) == -1) {//change to nonblocking
@@ -226,11 +226,11 @@ int main(int argc, char** argv) {
                 //if you get a message
                       //if a request 
                                 //check if request can be fufilled
-                                //if yes update resources accordingly and stat keeping variable
+                                //if yes update resources accordingly and stat keeping variable and send message back
                                 //if no update request matrix and stat keeping variable and increment the requestTrack variable
                                 //assign the requestTrack variable to the correct value in PCB
                       //if a release 
-                                //release resources accordingly and update stat keeping variable
+                                //release resources accordingly and update stat keeping variable and message back
 
                 //every half second, output resource table and PCB, maybe the other matrix's too
                 if (sharedTime[1] == 500000000 || sharedTime[1] == 0){//This may need editing too
