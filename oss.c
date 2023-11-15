@@ -74,7 +74,7 @@ void displayMatrix(int matrix[20][10], FILE *file){
 }
 
 void updateTime(int *sharedTime){
-        sharedTime[1] = sharedTime[1] + 10000000;
+        sharedTime[1] = sharedTime[1] + 100000000;
         if (sharedTime[1] >= 1000000000 ){
                 sharedTime[0] = sharedTime[0] + 1;
                 sharedTime[1] = sharedTime[1] - 1000000000;
@@ -179,8 +179,8 @@ int main(int argc, char** argv) {
 
                 //increment time grab function from project4, function may need editing in terms of time increment
                 updateTime(sharedTime);
-                oneSecCounter += 10000000;
-                halfSecCounter += 10000000;
+                oneSecCounter += 100000000;
+                halfSecCounter += 100000000;
                 
                 //check if process has terminated 
                 for (int x = 0; x < totalLaunched; x++){
