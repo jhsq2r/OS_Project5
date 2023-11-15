@@ -14,7 +14,7 @@
 
 typedef struct msgbuffer {
         long mtype;
-        int intData[2];
+        int intData[3];
 } msgbuffer;
 
 int main(int argc, char** argv){
@@ -35,7 +35,7 @@ int main(int argc, char** argv){
         }
         int * sharedTime = (int*) (shmat (shmid, 0, 0));
 
-        //printf("This is Child: %d, From Parent: %d, Seconds: %s, NanoSeconds: %s\n", getpid(), getppid(), argv[1], argv[2]);
+        printf("This is Child: %d, From Parent: %d, Seconds: %d, NanoSeconds: %d\n", getpid(), getppid(), sharedTime[0], sharedTime[1]);
 
         //printf("WORKER PID:%d PPID:%d SysClockS: %d SysclockNano: %d TermTimeS: %d TermTimeNano: %d JUST STARTING\n",getpid(),getppid(),sharedTime[0],sharedTime[1],exitTime[0],exitTime[1]);
 
@@ -53,12 +53,17 @@ int main(int argc, char** argv){
         int initialNano = sharedTime[1];
         int searchAttempts = 0;
         int messageFlag = 0;
+        int startNow = 0;
 
         while (1){
                 seed++;
 
                 //check if 250000000 nanoseconds have passed
-                if (sharedTime[0]-initialSeconds >= 1 || sharedTime[1] - initialNano >= 250000000){
+                //printf("Shared Time from worker is %d %d \n", sharedTime[0],sharedTime[1]);
+                //printf("Determining Varaibles value: %d %d \n", initialSeconds, initialNano);
+                if (sharedTime[0] - initialSeconds >= 1 || sharedTime[1] - initialNano >= 250000000 || startNow == 0){
+                        startNow = 1;
+                        //printf("Worker action...\n");
 
                         initialSeconds = sharedTime[0];
                         initialNano = sharedTime[1];
@@ -66,9 +71,9 @@ int main(int argc, char** argv){
                         srand(seed*getpid());
                         percentChance = (rand() % 100) + 1;
                         //printf("PercentChance: %d\n", percentChance);
-                        if (percentChance <= 2){//terminate
+                        if (percentChance <= 1){//terminate
                                 break;
-                        }else if (percentChance > 2 && percentChance < 90){//request resource
+                        }else if (percentChance > 1 && percentChance < 90){//request resource
                                 //Random number between 0 and 9
                                 randomResource = (rand() % 10);
                                 //Only request if we don't have 20 of that resource
@@ -129,6 +134,7 @@ int main(int argc, char** argv){
                         //send message
                         if (messageFlag != 0){
                                 receiver.mtype = getppid();
+                                receiver.intData[2] = getpid();
                                 if (msgsnd(msqid, &receiver, sizeof(msgbuffer)-sizeof(long),0) == -1){
                                         perror("msgsnd to parent failed\n");
                                         exit(1);
@@ -163,4 +169,5 @@ int main(int argc, char** argv){
         return 0;
 
 }
+
 
