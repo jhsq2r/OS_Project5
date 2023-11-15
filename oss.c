@@ -158,6 +158,9 @@ int main(int argc, char** argv) {
         int allocationMatrix[20][10];
         int allocatedResourceArray[10];
         int canGrant;
+        int selected = 0;
+        int grantedNow = 0;
+        int grantedLater = 0;
         
         while(1){
                 seed++;
@@ -244,6 +247,7 @@ int main(int argc, char** argv) {
                                                 requestMatrix[x][y] = 0;
                                         }
                                         processTable[x].isWaiting = 0;
+                                        grantedLater++;
                                         //Send message back to granted process
                                         messenger.mtype = processTable[x].pid;
                                         messenger.intData[0] = 1;
@@ -266,13 +270,50 @@ int main(int argc, char** argv) {
                         }        
                 }else{//if you get a message
                         //printf("Recived %d from worker\n",message.data);
-
+                        //Find out which index is the process that sent the message
+                        selected = -1;
+                        for(int x = 0; x < totalLaunched; x++){
+                                if(processTable[x].pid == receiver.mtype){
+                                        selected = x;
+                                }
+                        }
+                        if(selected == -1){
+                                printf("Selected Index neg...\n");
+                                return EXIT_FAILURE;
+                        }
+                                
                         //if a request 
+                        if(receiver.intData[0] == 1){
                                 //check if request can be fufilled
-                                //if yes update resources accordingly and stat keeping variable and send message back
-                                //if no update request matrix and stat keeping variable and increment the requestTrack variable
-                        //if a release 
+                                if(allocationResourceArray[receiver.intData[1]] + 1 <= 20){
+                                        //if yes update resources accordingly and stat keeping variable and send message back
+                                        allocationResourceArray[receiver.intData[1]]++;
+                                        allocatedMatrix[selected][receiver.intData[1]]++;
+                                        grantedNow++;
+                                        messenger.mtype = processTable[selected].pid;
+                                        messenger.intData[0] = 1;
+                                        if (msgsnd(msqid, &messenger, sizeof(msgbuffer)-sizeof(long), 0) == -1) {
+                                                perror("msgsnd to child 1 failed\n");
+                                                exit(1);
+                                        }
+                                }else{
+                                        //if no update request matrix
+                                        requestMatrix[selected][receiver.intData[1]]++;
+                                }
+                        }
+                        //if a release
+                        if(receiver.intData[0] == -1){
                                 //release resources accordingly and update stat keeping variable and message back
+                                allocationResourceArray[receiver.intData[1]]--;
+                                allocatedMatrix[selected][receiver.intData[1]]--;
+                                messenger.mtype = processTable[selected].pid;
+                                messenger.intData[0] = 1;
+                                if (msgsnd(msqid, &messenger, sizeof(msgbuffer)-sizeof(long), 0) == -1) {
+                                        perror("msgsnd to child 1 failed\n");
+                                        exit(1);
+                                }
+                                
+                        }
                 }
 
                 //every half second, output resource table and PCB, maybe the other matrix's too
