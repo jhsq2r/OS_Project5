@@ -81,6 +81,10 @@ void updateTime(int *sharedTime){
         }
 }
 
+void help(){
+        printf("Help here\n");
+}
+
 //may need custom data structures for resource management
 
 int main(int argc, char** argv) {
@@ -172,7 +176,7 @@ int main(int argc, char** argv) {
         int grantedLater = 0;
         int oneSecCounter = 0;
         int halfSecCounter = 0;
-        
+
         while(1){
                 seed++;
                 srand(seed);
@@ -181,8 +185,8 @@ int main(int argc, char** argv) {
                 updateTime(sharedTime);
                 oneSecCounter += 100000000;
                 halfSecCounter += 100000000;
-                
-                //check if process has terminated 
+
+                //check if process has terminated
                 for (int x = 0; x < totalLaunched; x++){
                         if (processTable[x].occupied == 1){
                                 if (waitpid(processTable[x].pid, &status, 0) > 0){
@@ -206,7 +210,7 @@ int main(int argc, char** argv) {
                 if(totalInSystem == 0 && totalLaunched == proc){
                         break;
                 }
-                
+
                 if (totalLaunched != 0){//see if worker can be launched
                         if (nextLaunchTime[0] < sharedTime[0]){
                                 canLaunch = 1;
@@ -216,7 +220,7 @@ int main(int argc, char** argv) {
                                 canLaunch = 0;
                         }
                 }
-          
+
                 //launch worker if
                 if((totalInSystem < simul && canLaunch == 1 && totalLaunched < proc) || totalLaunched == 0){
 
@@ -245,7 +249,7 @@ int main(int argc, char** argv) {
                         totalLaunched++;
                 }
 
-                //Check if any request from the request matrix can be fulfilled 
+                //Check if any request from the request matrix can be fulfilled
                 //increment through the PCB and check if any waiting requests can be fulfilled
                 for(int x = 0; x < totalLaunched; x++){
                         if(processTable[x].isWaiting == 1){
@@ -276,7 +280,7 @@ int main(int argc, char** argv) {
                                 }
                         }
                 }
-                
+
                 //Dont wait for message, but check
                 if(msgrcv(msqid, &receiver, sizeof(msgbuffer),getpid(),IPC_NOWAIT) == -1){
                         if(errno == ENOMSG){
@@ -285,7 +289,7 @@ int main(int argc, char** argv) {
                                 printf("Got an error from msgrcv\n");
                                 perror("msgrcv");
                                 exit(1);
-                        }        
+                        }
                 }else{//if you get a message
                         //printf("Recived %d from worker\n",message.data);
                         //Find out which index is the process that sent the message
@@ -299,14 +303,14 @@ int main(int argc, char** argv) {
                                 printf("Selected Index neg...\n");
                                 return EXIT_FAILURE;
                         }
-                                
-                        //if a request 
+
+                        //if a request
                         if(receiver.intData[0] == 1){
                                 //check if request can be fufilled
-                                if(allocationResourceArray[receiver.intData[1]] + 1 <= 20){
+                                if(allocatedResourceArray[receiver.intData[1]] + 1 <= 20){
                                         //if yes update resources accordingly and stat keeping variable and send message back
-                                        allocationResourceArray[receiver.intData[1]]++;
-                                        allocatedMatrix[selected][receiver.intData[1]]++;
+                                        allocatedResourceArray[receiver.intData[1]]++;
+                                        allocationMatrix[selected][receiver.intData[1]]++;
                                         grantedNow++;
                                         messenger.mtype = processTable[selected].pid;
                                         messenger.intData[0] = 1;
@@ -322,24 +326,24 @@ int main(int argc, char** argv) {
                         //if a release
                         if(receiver.intData[0] == -1){
                                 //release resources accordingly and update stat keeping variable and message back
-                                allocationResourceArray[receiver.intData[1]]--;
-                                allocatedMatrix[selected][receiver.intData[1]]--;
+                                allocatedResourceArray[receiver.intData[1]]--;
+                                allocationMatrix[selected][receiver.intData[1]]--;
                                 messenger.mtype = processTable[selected].pid;
                                 messenger.intData[0] = 1;
                                 if (msgsnd(msqid, &messenger, sizeof(msgbuffer)-sizeof(long), 0) == -1) {
                                         perror("msgsnd to child 1 failed\n");
                                         exit(1);
                                 }
-                                
+
                         }
                 }
 
                 //every half second, output resource table and PCB, maybe the other matrix's too
                 if (halfSecCounter >= 500000000){
-                        displayTable(i, processTable, file);
+                        displayTable(totalLaunched, processTable, file);
                         //display matrices
                         printf("Allocation Matrix:\n");
-                        displayMatrix(allocatedMatrix, file);
+                        displayMatrix(allocationMatrix, file);
                         printf("Request Matrix:\n");
                         displayMatrix(requestMatrix, file);
                         halfSecCounter = 0;
@@ -372,3 +376,4 @@ int main(int argc, char** argv) {
 
         return 0;
 }
+
