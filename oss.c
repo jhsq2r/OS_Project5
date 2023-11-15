@@ -65,7 +65,7 @@ void displayTable(int i, struct PCB *processTable, FILE *file){
 }
 
 void updateTime(int *sharedTime){
-        sharedTime[1] = sharedTime[1] + 100000000;
+        sharedTime[1] = sharedTime[1] + 10000000;
         if (sharedTime[1] >= 1000000000 ){
                 sharedTime[0] = sharedTime[0] + 1;
                 sharedTime[1] = sharedTime[1] - 1000000000;
@@ -161,6 +161,8 @@ int main(int argc, char** argv) {
         int selected = 0;
         int grantedNow = 0;
         int grantedLater = 0;
+        int oneSecCounter = 0;
+        int halfSecCounter = 0;
         
         while(1){
                 seed++;
@@ -168,6 +170,8 @@ int main(int argc, char** argv) {
 
                 //increment time grab function from project4, function may need editing in terms of time increment
                 updateTime(sharedTime);
+                oneSecCounter += 10000000;
+                halfSecCounter += 10000000;
                 
                 //check if process has terminated 
                 for (int x = 0; x < totalLaunched; x++){
@@ -322,10 +326,16 @@ int main(int argc, char** argv) {
                 }
 
                 //every half second, output resource table and PCB, maybe the other matrix's too
-                if (sharedTime[1] == 500000000 || sharedTime[1] == 0){//This may need editing too
+                if (halfSecCounter >= 500000000){
                         displayTable(i, processTable, file);
+                        //display matrices
+                        halfSecCounter = 0;
                 }
                 //every second, check for deadlock
+                if (oneSecCounter >= 1000000000){
+                        //check for deadlock
+                        oneSecCounter = 0;
+                }
 
                 //if deadlock do this
         }
