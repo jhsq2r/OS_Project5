@@ -43,23 +43,23 @@ int main(int argc, char** argv){
         int seed = rand();
         int percentChance;
         int givenTime;
-        int myResources[10];
+        int myResource[10];
         for (int x = 0; x < 10; x++){
-                myResources[x] = 0;
+                myResource[x] = 0;
         }
         int randomResource = 0;
-        //initial time 
+        //initial time
         int initialSeconds = sharedTime[0];
         int initialNano = sharedTime[1];
         int searchAttempts = 0;
         int messageFlag = 0;
-        
+
         while (1){
                 seed++;
-                
+
                 //check if 250000000 nanoseconds have passed
-                if (sharedTime[0]-initialSeconds >= 1 || sharedTime[1] - initialNao >= 250000000){
-                        
+                if (sharedTime[0]-initialSeconds >= 1 || sharedTime[1] - initialNano >= 250000000){
+
                         initialSeconds = sharedTime[0];
                         initialNano = sharedTime[1];
                         searchAttempts = 0;
@@ -88,7 +88,7 @@ int main(int argc, char** argv){
                                         }
                                 }
                                 if(searchAttempts == 10){
-                                        messageFlag = 0; 
+                                        messageFlag = 0;
                                 }else{
                                         messageFlag = 1;
                                         receiver.intData[0] = 1;
@@ -114,7 +114,7 @@ int main(int argc, char** argv){
                                         }
                                 }
                                 if(searchAttempts == 10){
-                                        messageFlag = 0; 
+                                        messageFlag = 0;
                                 }else{
                                         messageFlag = -1;
                                         receiver.intData[0] = -1;
@@ -125,7 +125,7 @@ int main(int argc, char** argv){
                                 messageFlag = 0;
                                 break;
                         }
-        
+
                         //send message
                         if (messageFlag != 0){
                                 receiver.mtype = getppid();
@@ -133,19 +133,19 @@ int main(int argc, char** argv){
                                         perror("msgsnd to parent failed\n");
                                         exit(1);
                                 }
-                
+
                                 //wait for message back
                                 if ( msgrcv(msqid, &receiver, sizeof(msgbuffer), getpid(), 0) == -1) {
                                         perror("failed to receive message from parent\n");
                                         exit(1);
                                 }
                                 //printf("WORKER PID:%d Message received\n",getpid());
-                
+
                                 //update myResource for the released resources
                                 if (messageFlag == -1){
                                         myResource[randomResource]--;
                                 }
-        
+
                                 //update myResource for the gained resources
                                 if (messageFlag == 1){
                                         myResource[randomResource]++;
@@ -155,7 +155,7 @@ int main(int argc, char** argv){
                 }
 
         }
-  
+
         //printf("Killing child %d\n", getpid());
         //printf("WORKER PID:%d PPID:%d SysClockS: %d SysclockNano: %d TermTimeS: %d TermTimeNano: %d TERMINATING\n",getpid(),getppid(),sharedTime[0],sharedTime[1],exitTime[0],exitTime[1]);
         shmdt(sharedTime);
@@ -163,3 +163,4 @@ int main(int argc, char** argv){
         return 0;
 
 }
+
