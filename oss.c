@@ -64,6 +64,15 @@ void displayTable(int i, struct PCB *processTable, FILE *file){
         }
 }
 
+void displayMatrix(int matrix[20][10], FILE *file){
+        for (int i = 0; i < 20; i++){
+                for (int j = 0; j < 10; j++){
+                        printf("%2d ", matrix[i][j]); // Adjust the width as needed
+                }
+                printf("\n");
+        }
+}
+
 void updateTime(int *sharedTime){
         sharedTime[1] = sharedTime[1] + 10000000;
         if (sharedTime[1] >= 1000000000 ){
@@ -329,6 +338,10 @@ int main(int argc, char** argv) {
                 if (halfSecCounter >= 500000000){
                         displayTable(i, processTable, file);
                         //display matrices
+                        printf("Allocation Matrix:\n");
+                        displayMatrix(allocatedMatrix, file);
+                        printf("Request Matrix:\n");
+                        displayMatrix(requestMatrix, file);
                         halfSecCounter = 0;
                 }
                 //every second, check for deadlock
