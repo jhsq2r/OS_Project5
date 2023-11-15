@@ -22,7 +22,7 @@
 
 typedef struct msgbuffer {
         long mtype;
-        int intData[2];//may need to add another in for pid, may not be needed though
+        int intData[3];//may need to add another in for pid, may not be needed though
 } msgbuffer;
 
 static void myhandler(int s){
@@ -64,8 +64,8 @@ void displayTable(int i, struct PCB *processTable, FILE *file){
         }
 }
 
-void displayMatrix(int matrix[20][10], FILE *file){
-        for (int i = 0; i < 20; i++){
+void displayMatrix(int total, int matrix[20][10], FILE *file){
+        for (int i = 0; i < total; i++){
                 for (int j = 0; j < 10; j++){
                         printf("%2d ", matrix[i][j]); // Adjust the width as needed
                 }
@@ -83,6 +83,50 @@ void updateTime(int *sharedTime){
 
 void help(){
         printf("Help here\n");
+}
+
+int deadlockDetection(int totalLaunched, int aloMatrix[20][10], int reqMatrix[20][10], int aloArray[10]){
+        int i, j;
+        int work[10];
+        int finish[totalLaunched];
+        int safe_sequence[totalLaunched];
+        int num_finished = 0;
+
+        for(i = 0; i < 10; i++){
+                work[i] = aloArray[i];
+        }
+
+        for(i = 0; i < totalLaunched; i++){
+                finish[i] = 0;
+        }
+
+        while(num_finished < totalLaunched){
+                int found = 0;
+                for (i = 0; i < totalLaunched; i++){
+                        if(!finish[i]){
+                                int can_finish = 1;
+                                for(j = 0; j < 10; j++){
+                                        if(reqMatrix[i][j] > work[j]){
+                                                can_finish = 0;
+                                                break;
+                                        }
+                                }
+                                if(can_finish){
+                                        for(j = 0; j < 10; j++){
+                                                work[j] += aloMatrix[i][j];
+                                        }
+                                        finish[i] = 1;
+                                        safe_sequence[num_finished] = i;
+                                        num_finished++;
+                                        found = 1;
+                                }
+                        }
+                }
+                if(!found){
+                        return 1;
+                }
+        }
+        return 0;
 }
 
 //may need custom data structures for resource management
@@ -169,18 +213,30 @@ int main(int argc, char** argv) {
 
         int requestMatrix[20][10];
         int allocationMatrix[20][10];
+        for(int x = 0; x < 20; x++){
+                for(int y =0; y < 10; y++){
+                        requestMatrix[x][y] = 0;
+                        allocationMatrix[x][y] = 0;
+                }
+        }
         int allocatedResourceArray[10];
+        int availableResourceArray[10];
+        for(int x = 0; x < 10; x++){
+                allocatedResourceArray[x] = 0;
+                availableResourceArray[x] = 0;
+        }
         int canGrant;
         int selected = 0;
         int grantedNow = 0;
         int grantedLater = 0;
         int oneSecCounter = 0;
         int halfSecCounter = 0;
+        int deadlock = 0;
 
         while(1){
                 seed++;
                 srand(seed);
-
+                //printf("Looping...\n");
                 //increment time grab function from project4, function may need editing in terms of time increment
                 updateTime(sharedTime);
                 oneSecCounter += 100000000;
@@ -189,7 +245,7 @@ int main(int argc, char** argv) {
                 //check if process has terminated
                 for (int x = 0; x < totalLaunched; x++){
                         if (processTable[x].occupied == 1){
-                                if (waitpid(processTable[x].pid, &status, 0) > 0){
+                                if (waitpid(processTable[x].pid, &status, WNOHANG) > 0){
                                         processTable[x].occupied = 0;
                                         //free resources
                                         //Edit charts as needed
@@ -200,6 +256,7 @@ int main(int argc, char** argv) {
                                 }
                         }
                 }
+                //printf("CheckPoint 1\n");
                 //recalculate total
                 totalInSystem = 0;
                 for (int x = 0; x < proc; x++){
@@ -221,6 +278,7 @@ int main(int argc, char** argv) {
                         }
                 }
 
+                //printf("CheckPoint 2\n");
                 //launch worker if
                 if((totalInSystem < simul && canLaunch == 1 && totalLaunched < proc) || totalLaunched == 0){
 
@@ -247,10 +305,12 @@ int main(int argc, char** argv) {
                                 fprintf(file,"Generating process with PID %d at time %d:%d\n",child_pid,sharedTime[0],sharedTime[1]);
                         }
                         totalLaunched++;
+                        sleep(1);
                 }
 
                 //Check if any request from the request matrix can be fulfilled
                 //increment through the PCB and check if any waiting requests can be fulfilled
+                //printf("CheckPoint 3\n");
                 for(int x = 0; x < totalLaunched; x++){
                         if(processTable[x].isWaiting == 1){
                                 canGrant = 1;
@@ -280,22 +340,23 @@ int main(int argc, char** argv) {
                                 }
                         }
                 }
-
+                //printf("CheckPoint 4\n");
                 //Dont wait for message, but check
                 if(msgrcv(msqid, &receiver, sizeof(msgbuffer),getpid(),IPC_NOWAIT) == -1){
                         if(errno == ENOMSG){
-                                printf("Got no message so maybe do nothing?\n");
+                                //printf("Got no message so maybe do nothing?\n");
                         }else{
                                 printf("Got an error from msgrcv\n");
                                 perror("msgrcv");
                                 exit(1);
                         }
                 }else{//if you get a message
-                        //printf("Recived %d from worker\n",message.data);
+                        //printf("Recived message from worker\n");
+                        printf("Message details: ID:%d Payload:%d %d \n", receiver.intData[2], receiver.intData[0], receiver.intData[1]);
                         //Find out which index is the process that sent the message
                         selected = -1;
                         for(int x = 0; x < totalLaunched; x++){
-                                if(processTable[x].pid == receiver.mtype){
+                                if(processTable[x].pid == receiver.intData[2]){
                                         selected = x;
                                 }
                         }
@@ -342,19 +403,35 @@ int main(int argc, char** argv) {
                 if (halfSecCounter >= 500000000){
                         displayTable(totalLaunched, processTable, file);
                         //display matrices
-                        printf("Allocation Matrix:\n");
-                        displayMatrix(allocationMatrix, file);
+                        printf("Total Allocation Array:\n");
+                        for(int x = 0; x < 10; x++){
+                                printf("%2d ", allocatedResourceArray[x]);
+                        }
+                        printf("\nAllocation Matrix:\n");
+                        displayMatrix(totalLaunched, allocationMatrix, file);
                         printf("Request Matrix:\n");
-                        displayMatrix(requestMatrix, file);
+                        displayMatrix(totalLaunched, requestMatrix, file);
                         halfSecCounter = 0;
                 }
                 //every second, check for deadlock
                 if (oneSecCounter >= 1000000000){
                         //check for deadlock
+                        deadlock = -1;
+                        for(int x = 0; x < 10; x++){
+                                availableResourceArray[x] = 20 - allocatedResourceArray[x];
+                        }
+                        deadlock = deadlockDetection(totalLaunched, allocationMatrix, requestMatrix, availableResourceArray);
+                        if(deadlock == 1){
+                                printf("Deadlock Detected...\n");
+                                return EXIT_FAILURE;
+                        }else if(deadlock == 0){
+                                printf("No deadlock detected...\n");
+                        }else{
+                                printf("Something weird...\n");
+                                return EXIT_FAILURE;
+                        }
                         oneSecCounter = 0;
                 }
-
-                //if deadlock do this
         }
 
         displayTable(proc, processTable, file);
@@ -376,4 +453,5 @@ int main(int argc, char** argv) {
 
         return 0;
 }
+
 
