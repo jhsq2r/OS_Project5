@@ -153,6 +153,12 @@ int main(int argc, char** argv) {
         nextLaunchTime[1] = 0;
         int canLaunch;
         int requestTrack = 0;
+
+        int requestMatrix[20][10];
+        int allocationMatrix[20][10];
+        int allocatedResourceArray[10];
+        int canGrant;
+        
         while(1){
                 seed++;
                 srand(seed);
@@ -167,6 +173,10 @@ int main(int argc, char** argv) {
                                         processTable[x].occupied = 0;
                                         //free resources
                                         //Edit charts as needed
+                                        for(int y = 0; y < 10; y++){
+                                                allocatedResourceArray[y] -= allocationMatrix[x][y];
+                                                allocationMatrix[x][y] = 0;
+                                        }
                                 }
                         }
                 }
@@ -216,21 +226,54 @@ int main(int argc, char** argv) {
 
                 //Check if any request from the request matrix can be fulfilled 
                 //increment through the PCB and check if any waiting requests can be fulfilled
-                //If request can be fulfilled, update request matrix-allocation matrix-PCB-resource array-allocation array, then message back
+                for(int x = 0; x < totalLaunched; x++){
+                        if(processTable[x].isWaiting == 1){
+                                canGrant = 1;
+                                for(int y = 0; y < 10; y++){
+                                        if(requestMatrix[x][y] + allocatedResourceArray[y] <= 20){
+                                                canGrant = 1;
+                                        }else{
+                                                canGrant = 0;
+                                                break;
+                                        }
+                                }
+                                if(canGrant == 1){//If request can be fulfilled, update request matrix-allocation matrix-PCB-resource array-allocation array, then message back
+                                        for(int y = 0; y < 10; y++){
+                                                allocatedResourceArray[y] += requestMatrix[x][y];
+                                                allocationMatrix[x][y] += requestMatrix[x][y];
+                                                requestMatrix[x][y] = 0;
+                                        }
+                                        processTable[x].isWaiting = 0;
+                                        //Send message back to granted process
+                                        messenger.mtype = processTable[x].pid;
+                                        messenger.intData[0] = 1;
+                                        if (msgsnd(msqid, &messenger, sizeof(msgbuffer)-sizeof(long), 0) == -1) {
+                                                perror("msgsnd to child 1 failed\n");
+                                                exit(1);
+                                        }
+                                }
+                        }
+                }
                 
                 //Dont wait for message, but check
-                if (msgrcv(msqid, &receiver, sizeof(msgbuffer), getpid(),0) == -1) {//change to nonblocking
-                        perror("failed to receive message in parent\n");
-                        exit(1);
-                }
-                //if you get a message
-                      //if a request 
+                if(msgrcv(msqid, &receiver, sizeof(msgbuffer),getpid(),IPC_NOWAIT) == -1){
+                        if(errno == ENOMSG){
+                                printf("Got no message so maybe do nothing?\n");
+                        }else{
+                                printf("Got an error from msgrcv\n");
+                                perror("msgrcv");
+                                exit(1);
+                        }        
+                }else{//if you get a message
+                        //printf("Recived %d from worker\n",message.data);
+
+                        //if a request 
                                 //check if request can be fufilled
                                 //if yes update resources accordingly and stat keeping variable and send message back
                                 //if no update request matrix and stat keeping variable and increment the requestTrack variable
-                                //assign the requestTrack variable to the correct value in PCB
-                      //if a release 
+                        //if a release 
                                 //release resources accordingly and update stat keeping variable and message back
+                }
 
                 //every half second, output resource table and PCB, maybe the other matrix's too
                 if (sharedTime[1] == 500000000 || sharedTime[1] == 0){//This may need editing too
