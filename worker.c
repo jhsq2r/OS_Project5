@@ -83,6 +83,7 @@ int main(int argc, char** argv){
                                                         break;
                                                 }else{
                                                         searchAttempts++;
+                                                        randomResource++;
                                                 }
                                         }
                                 }
@@ -108,6 +109,7 @@ int main(int argc, char** argv){
                                                         break;
                                                 }else{
                                                         searchAttempts++;
+                                                        randomResource++;
                                                 }
                                         }
                                 }
