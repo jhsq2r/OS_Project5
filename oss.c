@@ -188,6 +188,11 @@ int main(int argc, char** argv) {
                 for (int x = 0; x < proc; x++){
                         totalInSystem += processTable[x].occupied;
                 }
+
+                //determine if simulation is over
+                if(totalInSystem == 0 && totalLaunched == proc){
+                        break;
+                }
                 
                 if (totalLaunched != 0){//see if worker can be launched
                         if (nextLaunchTime[0] < sharedTime[0]){
