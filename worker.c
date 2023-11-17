@@ -35,7 +35,7 @@ int main(int argc, char** argv){
         }
         int * sharedTime = (int*) (shmat (shmid, 0, 0));
 
-        printf("This is Child: %d, From Parent: %d, Seconds: %d, NanoSeconds: %d\n", getpid(), getppid(), sharedTime[0], sharedTime[1]);
+        //printf("This is Child: %d, From Parent: %d, Seconds: %d, NanoSeconds: %d\n", getpid(), getppid(), sharedTime[0], sharedTime[1]);
 
         //printf("WORKER PID:%d PPID:%d SysClockS: %d SysclockNano: %d TermTimeS: %d TermTimeNano: %d JUST STARTING\n",getpid(),getppid(),sharedTime[0],sharedTime[1],exitTime[0],exitTime[1]);
 
@@ -147,6 +147,9 @@ int main(int argc, char** argv){
                                 }
                                 //printf("WORKER PID:%d Message received\n",getpid());
 
+                                if(receiver.intData[0] == 10){
+                                        break;
+                                }
                                 //update myResource for the released resources
                                 if (messageFlag == -1){
                                         myResource[randomResource]--;
