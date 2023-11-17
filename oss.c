@@ -55,11 +55,11 @@ struct PCB {
 };
 
 void displayTable(int i, struct PCB *processTable, FILE *file){
-        fprintf(file,"Process Table:\nEntry Occupied PID StartS StartN\n");
-        printf("Process Table:\nEntry Occupied PID StartS StartN\n");
+        fprintf(file,"Process Table:\nEntry Occupied PID        StartS StartN Waiting\n");
+        printf("Process Table:\nEntry Occupied PID      StartS StartN Waiting\n");
         for (int x = 0; x < i; x++){
-                fprintf(file,"%d        %d      %d      %d      %d\n",x,processTable[x].occupied,processTable[x].pid,processTable[x].startSeconds,processTable[x].startNano);
-                printf("%d      %d      %d      %d      %d\n", x,processTable[x].occupied,processTable[x].pid,processTable[x].startSeconds,processTable[x].startNano);
+                fprintf(file,"%d        %d      %d      %d      %d      %d\n",x,processTable[x].occupied,processTable[x].pid,processTable[x].startSeconds,processTable[x].startNano,processTable[x].isWaiting);
+                printf("%d      %d      %d      %d      %d      %d\n", x,processTable[x].occupied,processTable[x].pid,processTable[x].startSeconds,processTable[x].startNano,processTable[x].isWaiting);
 
         }
 }
@@ -68,13 +68,15 @@ void displayMatrix(int total, int matrix[20][10], FILE *file){
         for (int i = 0; i < total; i++){
                 for (int j = 0; j < 10; j++){
                         printf("%2d ", matrix[i][j]); // Adjust the width as needed
+                        fprintf(file,"%2d ", matrix[i][j]);
                 }
+                fprintf(file,"\n");
                 printf("\n");
         }
 }
 
 void updateTime(int *sharedTime){
-        sharedTime[1] = sharedTime[1] + 100000000;
+        sharedTime[1] = sharedTime[1] + 100000;
         if (sharedTime[1] >= 1000000000 ){
                 sharedTime[0] = sharedTime[0] + 1;
                 sharedTime[1] = sharedTime[1] - 1000000000;
@@ -82,7 +84,9 @@ void updateTime(int *sharedTime){
 }
 
 void help(){
-        printf("Help here\n");
+        printf("This program is designed to take in 4 parameters: \n-n [num processes to launch]\n-s [num that can run at once]\n-t [time in nanoseconds between launches]\n-f [file to write log]\n");
+        printf("This program will not run without these paramters being provided, do not set n over 20\nThis program simulates children asking for resources, deadlock detection, and deadlock resolution\n");
+        printf("This program also takes in a paramter -v 1 if you want to just see output from deadlocks\n");
 }
 
 int deadlockDetection(int totalLaunched, int aloMatrix[20][10], int reqMatrix[20][10], int aloArray[10]){
@@ -155,7 +159,8 @@ int main(int argc, char** argv) {
         int seed = rand();
         int proc = 5;
         int simul = 3;
-        int maxTime = 50000000;//default parameters
+        int maxTime = 100000;//default parameters
+        int verbose = 0;
         FILE *file;
 
         int shmid = shmget(SHMKEY, sizeof(int)*2, 0777 | IPC_CREAT);
@@ -168,7 +173,7 @@ int main(int argc, char** argv) {
         sharedTime[1] = 0;
 
         int option;
-        while((option = getopt(argc, argv, "hn:s:t:f:")) != -1) {//Read command line arguments
+        while((option = getopt(argc, argv, "hn:s:t:f:v:")) != -1) {//Read command line arguments
                 switch(option){
                         case 'h':
                                 help();
@@ -186,6 +191,9 @@ int main(int argc, char** argv) {
                         case 'f':
                                 file = fopen(optarg,"w");
                                 break;
+                        case 'v':
+                                verbose = atoi(optarg);
+                                break;
                         case '?':
                                 help();
                                 return EXIT_FAILURE;
@@ -199,6 +207,7 @@ int main(int argc, char** argv) {
         struct PCB processTable[20];
         for (int y = 0; y < 20; y++){
                 processTable[y].occupied = 0;
+                processTable[y].isWaiting = 0;
         }
 
         int totalInSystem = 0;
@@ -232,6 +241,8 @@ int main(int argc, char** argv) {
         int oneSecCounter = 0;
         int halfSecCounter = 0;
         int deadlock = 0;
+        int kills = 0;
+        int totalDetections = 0;
 
         while(1){
                 seed++;
@@ -239,8 +250,8 @@ int main(int argc, char** argv) {
                 //printf("Looping...\n");
                 //increment time grab function from project4, function may need editing in terms of time increment
                 updateTime(sharedTime);
-                oneSecCounter += 100000000;
-                halfSecCounter += 100000000;
+                oneSecCounter += 100000;
+                halfSecCounter += 100000;
 
                 //check if process has terminated
                 for (int x = 0; x < totalLaunched; x++){
@@ -252,6 +263,10 @@ int main(int argc, char** argv) {
                                         for(int y = 0; y < 10; y++){
                                                 allocatedResourceArray[y] -= allocationMatrix[x][y];
                                                 allocationMatrix[x][y] = 0;
+                                        }
+                                        if(verbose != 1){
+                                        printf("Master has detected Process P%d has terminated at time %d:%d\n", x,sharedTime[0],sharedTime[1]);
+                                        fprintf(file, "Master has detected Process P%d has terminated at time %d:%d\n", x,sharedTime[0],sharedTime[1]);
                                         }
                                 }
                         }
@@ -301,11 +316,11 @@ int main(int argc, char** argv) {
                                 processTable[totalLaunched].pid = child_pid;
                                 processTable[totalLaunched].startSeconds = sharedTime[0];
                                 processTable[totalLaunched].startNano = sharedTime[1];
-                                printf("Generating process with PID %d at time %d:%d\n",child_pid,sharedTime[0],sharedTime[1]);
-                                fprintf(file,"Generating process with PID %d at time %d:%d\n",child_pid,sharedTime[0],sharedTime[1]);
+                                //printf("Generating process with PID %d at time %d:%d\n",child_pid,sharedTime[0],sharedTime[1]);
+                                //fprintf(file,"Generating process with PID %d at time %d:%d\n",child_pid,sharedTime[0],sharedTime[1]);
                         }
                         totalLaunched++;
-                        sleep(1);
+                        //sleep(1);
                 }
 
                 //Check if any request from the request matrix can be fulfilled
@@ -337,6 +352,10 @@ int main(int argc, char** argv) {
                                                 perror("msgsnd to child 1 failed\n");
                                                 exit(1);
                                         }
+                                        if(verbose != 1){
+                                        printf("Master has detected that Process P%d's request can now be granted at time %d:%d\n", x,sharedTime[0],sharedTime[1]);
+                                        fprintf(file, "Master has detected that Process P%d's request can now be granted at time %d:%d\n", x,sharedTime[0],sharedTime[1]);
+                                        }
                                 }
                         }
                 }
@@ -352,7 +371,7 @@ int main(int argc, char** argv) {
                         }
                 }else{//if you get a message
                         //printf("Recived message from worker\n");
-                        printf("Message details: ID:%d Payload:%d %d \n", receiver.intData[2], receiver.intData[0], receiver.intData[1]);
+                        //printf("Message details: ID:%d Payload:%d %d \n", receiver.intData[2], receiver.intData[0], receiver.intData[1]);
                         //Find out which index is the process that sent the message
                         selected = -1;
                         for(int x = 0; x < totalLaunched; x++){
@@ -379,9 +398,22 @@ int main(int argc, char** argv) {
                                                 perror("msgsnd to child 1 failed\n");
                                                 exit(1);
                                         }
+                                        if(verbose != 1){
+                                        printf("Master has detected Process P%d has requested R%d at time %d:%d and is granting the request\n", selected,receiver.intData[1],sharedTime[0],sharedTime[1]);
+                                        fprintf(file,"Master has detected Process P%d has requested R%d at time %d:%d and is granting the request\n", selected,receiver.intData[1],sharedTime[0],sharedTime[1]);
+                                        }
                                 }else{
                                         //if no update request matrix
                                         requestMatrix[selected][receiver.intData[1]]++;
+                                        if(requestMatrix[selected][receiver.intData[1]]==2){
+                                                printf("Error...\n");
+                                                return EXIT_FAILURE;
+                                        }
+                                        processTable[selected].isWaiting = 1;
+                                        if(verbose != 1){
+                                        printf("Master has detected Process P%d has requested R%d at time %d:%d and is not granting the request\n", selected,receiver.intData[1],sharedTime[0],sharedTime[1]);
+                                        fprintf(file,"Master has detected Process P%d has requested R%d at time %d:%d and is not granting the request\n", selected,receiver.intData[1],sharedTime[0],sharedTime[1]);
+                                        }
                                 }
                         }
                         //if a release
@@ -395,37 +427,106 @@ int main(int argc, char** argv) {
                                         perror("msgsnd to child 1 failed\n");
                                         exit(1);
                                 }
-
+                                if(verbose != 1){
+                                printf("Master has detected Process P%d has released 1 of R%d at time %d:%d\n", selected,receiver.intData[1],sharedTime[0],sharedTime[1]);
+                                fprintf(file,"Master has detected Process P%d has released 1 of R%d at time %d:%d\n", selected,receiver.intData[1],sharedTime[0],sharedTime[1]);
+                                }
                         }
                 }
 
                 //every half second, output resource table and PCB, maybe the other matrix's too
-                if (halfSecCounter >= 500000000){
+                if (halfSecCounter >= 500000000 && verbose != 1){
                         displayTable(totalLaunched, processTable, file);
                         //display matrices
                         printf("Total Allocation Array:\n");
+                        fprintf(file,"Total Allocation Array:\n");
                         for(int x = 0; x < 10; x++){
                                 printf("%2d ", allocatedResourceArray[x]);
+                                fprintf(file,"%2d ", allocatedResourceArray[x]);
                         }
                         printf("\nAllocation Matrix:\n");
+                        fprintf(file,"\nAllocation Matrix:\n");
                         displayMatrix(totalLaunched, allocationMatrix, file);
                         printf("Request Matrix:\n");
+                        fprintf(file,"Request Matrix:\n");
                         displayMatrix(totalLaunched, requestMatrix, file);
                         halfSecCounter = 0;
                 }
                 //every second, check for deadlock
                 if (oneSecCounter >= 1000000000){
                         //check for deadlock
+                        printf("Master checking for deadlock at time %d:%d\n", sharedTime[0],sharedTime[1]);
+                        fprintf(file,"Master checking for deadlock at time %d:%d\n", sharedTime[0],sharedTime[1]);
                         deadlock = -1;
+                        totalDetections++;
                         for(int x = 0; x < 10; x++){
                                 availableResourceArray[x] = 20 - allocatedResourceArray[x];
                         }
                         deadlock = deadlockDetection(totalLaunched, allocationMatrix, requestMatrix, availableResourceArray);
                         if(deadlock == 1){
                                 printf("Deadlock Detected...\n");
-                                return EXIT_FAILURE;
+                                fprintf(file,"Deadlock Detected...\n");
+                                if(verbose == 1){
+                                        displayTable(totalLaunched, processTable, file);
+                                        printf("Total Allocation Array:\n");
+                                        fprintf(file,"Total Allocation Array:\n");
+                                        for(int x = 0; x < 10; x++){
+                                                printf("%2d ", allocatedResourceArray[x]);
+                                                fprintf(file,"%2d ", allocatedResourceArray[x]);
+                                        }
+                                        printf("\nAllocation Matrix:\n");
+                                        fprintf(file,"\nAllocation Matrix:\n");
+                                        displayMatrix(totalLaunched, allocationMatrix, file);
+                                        printf("Request Matrix:\n");
+                                        fprintf(file,"Request Matrix:\n");
+                                        displayMatrix(totalLaunched, requestMatrix, file);
+                                }
+
+                                //sleep(1);
+                                for(int x = 0; x < totalLaunched; x++){
+                                        if(processTable[x].occupied == 1){
+                                                printf("Master terminating Process P%d and freeing its resources at time %d:%d\n", x,sharedTime[0],sharedTime[1]);
+                                                fprintf(file,"Master terminating Process P%d and freeing its resources at time %d:%d\n", x,sharedTime[0],sharedTime[1]);
+                                                processTable[x].occupied = 0;
+                                                kills++;
+                                                for(int y = 0; y < 10; y++){
+                                                        allocatedResourceArray[y] -= allocationMatrix[x][y];
+                                                        availableResourceArray[y] = 20 - allocatedResourceArray[y];
+                                                        allocationMatrix[x][y] = 0;
+                                                        requestMatrix[x][y]=0;
+                                                }
+                                                messenger.mtype = processTable[x].pid;
+                                                messenger.intData[0] = 10;
+                                                if (msgsnd(msqid, &messenger, sizeof(msgbuffer)-sizeof(long), 0) == -1) {
+                                                        perror("msgsnd to child 1 failed\n");
+                                                         exit(1);
+                                                }
+                                                if(deadlockDetection(totalLaunched, allocationMatrix, requestMatrix, availableResourceArray) == 0){
+                                                        printf("Deadlock Solved!\n");
+                                                        fprintf(file,"Deadlock Solved!\n");
+                                                        if(verbose == 1){
+                                                                displayTable(totalLaunched, processTable, file);
+                                                                printf("Total Allocation Array:\n");
+                                                                fprintf(file,"Total Allocation Array:\n");
+                                                                for(int x = 0; x < 10; x++){
+                                                                        printf("%2d ", allocatedResourceArray[x]);
+                                                                        fprintf(file,"%2d ", allocatedResourceArray[x]);
+                                                                }
+                                                                printf("\nAllocation Matrix:\n");
+                                                                fprintf(file,"\nAllocation Matrix:\n");
+                                                                displayMatrix(totalLaunched, allocationMatrix, file);
+                                                                printf("Request Matrix:\n");
+                                                                fprintf(file,"Request Matrix:\n");
+                                                                displayMatrix(totalLaunched, requestMatrix, file);
+                                                        }
+                                                        break;
+                                                }
+                                        }
+                                }
+                                //return EXIT_FAILURE;
                         }else if(deadlock == 0){
                                 printf("No deadlock detected...\n");
+                                fprintf(file,"No deadlock detected...\n");
                         }else{
                                 printf("Something weird...\n");
                                 return EXIT_FAILURE;
@@ -435,10 +536,21 @@ int main(int argc, char** argv) {
         }
 
         displayTable(proc, processTable, file);
-        //display resource, allocation array
-        //display allocation matrix, request matrix
 
         //display stats
+        printf("Total Requests: %d\n", grantedNow+grantedLater);
+        printf("Granted right away: %d\n", grantedNow);
+        printf("Granted after some wait time: %d\n", grantedLater);
+        printf("Number of times deadlock detection was run: %d\n", totalDetections);
+        printf("Processes killed by deadlock removal: %d\n", kills);
+        printf("Processes that died naturally: %d\n", proc-kills);
+        fprintf(file,"Total Requests: %d\n", grantedNow+grantedLater);
+        fprintf(file,"Granted right away: %d\n", grantedNow);
+        fprintf(file,"Granted after some wait time: %d\n", grantedLater);
+        fprintf(file,"Number of times deadlock detection was run: %d\n", totalDetections);
+        fprintf(file,"Processes killed by deadlock removal: %d\n", kills);
+        fprintf(file,"Processes that died naturally: %d\n", proc-kills);
+
 
         shmdt(sharedTime);
         shmctl(shmid,IPC_RMID,NULL);
